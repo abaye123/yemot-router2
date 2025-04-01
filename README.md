@@ -254,6 +254,16 @@ const options = {
 call.go_to_folder(`/${call.ApiExtension}`);
 ```
 
+## `one_level_back()`
+
+חזרה שלוחה אחת אחורה.
+
+קיצור לתחביר הבא:
+
+```js
+call.go_to_folder('..');
+```
+
 ## `hangup()`
 
 ניתוק השיחה. קיצור לתחביר הבא:
