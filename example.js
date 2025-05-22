@@ -1,5 +1,5 @@
 import express from 'express';
-import { YemotRouter } from './index.js';
+import { YemotRouter, setCallValue, getCallValue, hasCallValue, getAllCallValues } from './index.js';
 import { fileURLToPath } from 'url';
 import process from 'process';
 export const app = express();
@@ -27,6 +27,12 @@ router.events.on('new_call', (call) => {
 
 /** @param {import('./index.js').Call} call */
 async function callHandler (call) {
+    // בדיקה אם המשתמש כבר עבר אימות בהתקשרות זו
+    if (hasCallValue(call.callId, 'isAuthenticated')) {
+        const userName = getCallValue(call.callId, 'userName') || 'אורח';
+        await call.read([{ type: 'text', data: `שלום שוב ${userName}` }], 'tap', { max_digits: 1 });
+    }
+
     // לא ניתן להתקדם ללא הקשת 10 וסולמית
     await call.read([{ type: 'text', data: 'היי, תקיש 10' }], 'tap', {
         max_digits: 2,
@@ -34,8 +40,14 @@ async function callHandler (call) {
         digits_allowed: ['10']
     });
 
+    // שמירה שהמשתמש עבר אימות
+    setCallValue(call.callId, 'isAuthenticated', true);
+
     const name = await call.read([{ type: 'text', data: 'שלום, אנא הקש את שמך המלא' }], 'tap', { typing_playback_mode: 'HebrewKeyboard' });
     console.log('name:', name);
+    
+    // שמירת השם לשימוש מאוחר יותר
+    setCallValue(call.callId, 'userName', name);
 
     const addressFilePath = await call.read(
         [
@@ -46,9 +58,18 @@ async function callHandler (call) {
     );
     console.log('address file path:', addressFilePath);
 
+    // שמירת נתיב הקובץ
+    setCallValue(call.callId, 'addressFile', addressFilePath);
+
     // 💰 קטע זה משתמש בזיהוי דיבור ודורש יחידות במערכת 💰
     const text = await call.read([{ type: 'text', data: 'אנא אמור בקצרה את ההודעה שברצונך להשאיר' }], 'stt');
     console.log('user message:', text);
+
+    // שמירת ההודעה
+    setCallValue(call.callId, 'userMessage', text);
+
+    // הדפסת כל הנתונים שנשמרו
+    console.log('All saved call data:', getAllCallValues(call.callId));
 
     // לאחר השמעת ההודעה יוצא אוטומטית מהשלוחה
     // לשרשור פעולות לאחר השמעת ההודעה יש להגדיר prependToNextAction: true, ראה בREADME

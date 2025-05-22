@@ -79,7 +79,7 @@ interface ExpressRouterOptions {
 
     /**
      * Preserve the req.params values from the parent router.
-     * If the parent and the child have conflicting param names, the child’s value take precedence.
+     * If the parent and the child have conflicting param names, the child's value take precedence.
      *
      * @default false
      * @since 4.5.0
@@ -585,3 +585,117 @@ export class TimeoutError extends CallError {
 
     constructor (call: Call, timeout: number);
 }
+
+// =========== Call Values Management Functions ===========
+
+/**
+ * פונקציות לניהול ערכים שמורים לכל שיחה
+ * מאפשרות לשמור נתונים זמניים שמתאפסים אוטומטית בסיום השיחה
+ */
+
+/**
+ * שמירת ערך עבור שיחה וkey ספציפי
+ * @param callId מזהה השיחה
+ * @param key המפתח לשמירת הערך
+ * @param value הערך לשמירה
+ * @returns האם הפעולה הצליחה
+ */
+export function setCallValue(callId: string, key: string, value: any): boolean;
+
+/**
+ * איפוס/הסרת ערך ספציפי עבור שיחה
+ * @param callId מזהה השיחה 
+ * @param key המפתח לאיפוס
+ * @returns האם הפעולה הצליחה
+ */
+export function resetCallValue(callId: string, key: string): boolean;
+
+/**
+ * קבלת ערך עבור שיחה וkey ספציפי
+ * @param callId מזהה השיחה
+ * @param key המפתח לקבלת הערך
+ * @returns הערך השמור או null אם לא נמצא
+ */
+export function getCallValue(callId: string, key: string): any | null;
+
+/**
+ * בדיקה האם קיים ערך עבור שיחה וkey ספציפי
+ * @param callId מזהה השיחה
+ * @param key המפתח לבדיקה
+ * @returns האם קיים ערך
+ */
+export function hasCallValue(callId: string, key: string): boolean;
+
+/**
+ * קבלת כל הערכים השמורים עבור שיחה ספציפית
+ * @param callId מזהה השיחה
+ * @returns כל הערכים השמורים או null אם לא נמצאו
+ */
+export function getAllCallValues(callId: string): Record<string, any> | null;
+
+/**
+ * הסרת כל הערכים השמורים עבור שיחה ספציפית
+ * @param callId מזהה השיחה להסרה
+ * @returns האם הפעולה הצליחה
+ */
+export function clearCallValues(callId: string): boolean;
+
+/**
+ * הסרת כל הערכים השמורים עבור כל השיחות
+ * @returns האם הפעולה הצליחה
+ */
+export function clearAllCallValues(): boolean;
+
+/**
+ * קבלת מספר השיחות הפעילות עם ערכים שמורים
+ * @returns מספר השיחות הפעילות
+ */
+export function getActiveCallsCount(): number;
+
+/**
+ * קבלת כל מזהי השיחות הפעילות
+ * @returns מערך של מזהי שיחות
+ */
+export function getActiveCallIds(): string[];
+
+/**
+ * ניקוי ערכים שפג תוקפם (placeholder לעתיד)
+ * @param maxAge גיל מקסימלי במילישניות
+ * @returns מספר השיחות שנוקו
+ */
+export function cleanupExpiredValues(maxAge: number): number;
+
+// =========== Backward Compatibility for Token Functions ===========
+
+/**
+ * שמירת טוקן עבור שיחה (תאימות לאחור)
+ * @param callId מזהה השיחה
+ * @param value ערך הטוקן
+ * @returns האם הפעולה הצליחה
+ * @deprecated השתמש ב-setCallValue(callId, 'token', value) במקום
+ */
+export function setCallToken(callId: string, value: any): boolean;
+
+/**
+ * איפוס טוקן עבור שיחה (תאימות לאחור)
+ * @param callId מזהה השיחה
+ * @returns האם הפעולה הצליחה
+ * @deprecated השתמש ב-resetCallValue(callId, 'token') במקום
+ */
+export function resetCallToken(callId: string): boolean;
+
+/**
+ * קבלת טוקן עבור שיחה (תאימות לאחור)
+ * @param callId מזהה השיחה
+ * @returns הטוקן השמור או null אם לא נמצא
+ * @deprecated השתמש ב-getCallValue(callId, 'token') במקום
+ */
+export function getCallToken(callId: string): any | null;
+
+/**
+ * בדיקה האם קיים טוקן עבור שיחה (תאימות לאחור)
+ * @param callId מזהה השיחה
+ * @returns האם קיים טוקן
+ * @deprecated השתמש ב-hasCallValue(callId, 'token') במקום
+ */
+export function hasCallToken(callId: string): boolean;

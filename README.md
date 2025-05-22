@@ -529,6 +529,238 @@ router.get('/', async (call) => {
 
 שימושי לדוגמה כדי לטפל בקריאות עם `hangup=yes` גם מחוץ לשלוחה.
 
+# ניהול ערכים לכל שיחה
+
+הספריה מספקת מנגנון לשמירת ערכים זמניים עבור כל שיחה בנפרד. הערכים נשמרים במהלך השיחה ומתאפסים אוטומטית בסיומה (ניתוק, יציאה מהשלוחה או שגיאה).
+
+## פונקציות בסיסיות
+
+### `setCallValue(callId, key, value)`
+
+שמירת ערך עבור שיחה וkey ספציפי.
+
+```js
+import { setCallValue } from 'yemot-router2';
+
+// בתוך הפונקציית השיחה
+setCallValue(call.callId, 'userName', 'משה כהן');
+setCallValue(call.callId, 'step', 1);
+setCallValue(call.callId, 'preferences', { language: 'he', notifications: true });
+```
+
+### `getCallValue(callId, key)`
+
+קבלת ערך שמור עבור שיחה וkey ספציפי.
+
+```js
+import { getCallValue } from 'yemot-router2';
+
+const userName = getCallValue(call.callId, 'userName'); // 'משה כהן'
+const step = getCallValue(call.callId, 'step'); // 1
+const preferences = getCallValue(call.callId, 'preferences'); // { language: 'he', notifications: true }
+```
+
+### `hasCallValue(callId, key)`
+
+בדיקה האם קיים ערך עבור שיחה וkey ספציפי.
+
+```js
+import { hasCallValue } from 'yemot-router2';
+
+if (hasCallValue(call.callId, 'userName')) {
+    // המשתמש כבר הזין את שמו
+    const name = getCallValue(call.callId, 'userName');
+    await call.read([{ type: 'text', data: `שלום ${name}` }], 'tap');
+} else {
+    // בקש מהמשתמש להזין שם
+    const name = await call.read([{ type: 'text', data: 'אנא הזן את שמך' }], 'tap');
+    setCallValue(call.callId, 'userName', name);
+}
+```
+
+### `resetCallValue(callId, key)`
+
+איפוס/הסרת ערך ספציפי עבור שיחה.
+
+```js
+import { resetCallValue } from 'yemot-router2';
+
+resetCallValue(call.callId, 'temporaryData');
+```
+
+### `getAllCallValues(callId)`
+
+קבלת כל הערכים השמורים עבור שיחה ספציפית.
+
+```js
+import { getAllCallValues } from 'yemot-router2';
+
+const allValues = getAllCallValues(call.callId);
+console.log('כל הנתונים של השיחה:', allValues);
+// { userName: 'משה כהן', step: 1, preferences: { language: 'he', notifications: true } }
+```
+
+## פונקציות ניהול
+
+### `clearCallValues(callId)`
+
+הסרת כל הערכים השמורים עבור שיחה ספציפית.
+
+```js
+import { clearCallValues } from 'yemot-router2';
+
+// מחיקה ידנית של כל הנתונים לשיחה
+clearCallValues(call.callId);
+```
+
+### `clearAllCallValues()`
+
+הסרת כל הערכים השמורים עבור כל השיחות.
+
+```js
+import { clearAllCallValues } from 'yemot-router2';
+
+// ניקוי כללי של כל הנתונים (לדוגמה בעת restart של השרת)
+clearAllCallValues();
+```
+
+### `getActiveCallsCount()`
+
+קבלת מספר השיחות הפעילות עם ערכים שמורים.
+
+```js
+import { getActiveCallsCount } from 'yemot-router2';
+
+const activeCallsCount = getActiveCallsCount();
+console.log(`יש ${activeCallsCount} שיחות פעילות עם נתונים שמורים`);
+```
+
+### `getActiveCallIds()`
+
+קבלת כל מזהי השיחות הפעילות.
+
+```js
+import { getActiveCallIds } from 'yemot-router2';
+
+const callIds = getActiveCallIds();
+console.log('שיחות פעילות:', callIds);
+// ['abc123', 'def456', 'ghi789']
+```
+
+## תאימות לאחור - פונקציות טוקן
+
+עבור תאימות לאחור, הספריה מספקת פונקציות ייעודיות לניהול טוקנים:
+
+```js
+import { 
+    setCallToken, 
+    getCallToken, 
+    hasCallToken, 
+    resetCallToken 
+} from 'yemot-router2';
+
+// זהה ל-setCallValue(callId, 'token', value)
+setCallToken(call.callId, 'jwt-token-here');
+
+// זהה ל-getCallValue(callId, 'token') 
+const token = getCallToken(call.callId);
+
+// זהה ל-hasCallValue(callId, 'token')
+if (hasCallToken(call.callId)) {
+    // יש טוקן
+}
+
+// זהה ל-resetCallValue(callId, 'token')
+resetCallToken(call.callId);
+```
+
+## דוגמה מעשית - מערכת תפריטים מתקדמת
+
+```js
+import { YemotRouter, setCallValue, getCallValue, hasCallValue } from 'yemot-router2';
+
+const router = YemotRouter({ printLog: true });
+
+router.get('/', async (call) => {
+    // בדיקה אם המשתמש כבר התחבר
+    if (hasCallValue(call.callId, 'isAuthenticated')) {
+        return await showMainMenu(call);
+    }
+    
+    // תהליך התחברות
+    const phone = call.phone;
+    const pin = await call.read([
+        { type: 'text', data: 'שלום, אנא הזן את הקוד האישי שלך' }
+    ], 'tap', { max_digits: 4, min_digits: 4 });
+    
+    // בדיקת הקוד (לדוגמה)
+    if (await validatePin(phone, pin)) {
+        setCallValue(call.callId, 'isAuthenticated', true);
+        setCallValue(call.callId, 'userPhone', phone);
+        return await showMainMenu(call);
+    } else {
+        return call.id_list_message([
+            { type: 'text', data: 'קוד שגוי' }
+        ]);
+    }
+});
+
+async function showMainMenu(call) {
+    const userPhone = getCallValue(call.callId, 'userPhone');
+    
+    const choice = await call.read([
+        { type: 'text', data: 'תפריט ראשי - הקש 1 לחשבון, 2 לתמיכה' }
+    ], 'tap', { 
+        max_digits: 1, 
+        digits_allowed: [1, 2] 
+    });
+    
+    setCallValue(call.callId, 'currentMenu', 'main');
+    setCallValue(call.callId, 'lastChoice', choice);
+    
+    if (choice === '1') {
+        return await showAccountMenu(call);
+    } else if (choice === '2') {
+        return await showSupportMenu(call);
+    }
+}
+
+async function showAccountMenu(call) {
+    setCallValue(call.callId, 'currentMenu', 'account');
+    
+    // תצוגת תפריט חשבון...
+    const choice = await call.read([
+        { type: 'text', data: 'הקש 1 ליתרה, 2 לעסקאות אחרונות, 9 לתפריט הקודם' }
+    ], 'tap', { 
+        max_digits: 1, 
+        digits_allowed: [1, 2, 9] 
+    });
+    
+    if (choice === '9') {
+        return await showMainMenu(call);
+    }
+    
+    // המשך הטיפול...
+}
+
+async function validatePin(phone, pin) {
+    // כאן תהיה לוגיקת האימות האמיתית
+    return pin === '1234';
+}
+```
+
+## הערות חשובות
+
+⚠️ **ניקוי אוטומטי**: הערכים מתאפסים אוטומטיות בכל מקרה של סיום שיחה:
+- ניתוק על ידי המחייג
+- יציאה מהשלוחה (`id_list_message`, `go_to_folder`)
+- שגיאה שגורמת למחיקת השיחה
+- timeout
+
+⚠️ **זיכרון**: הערכים נשמרים בזיכרון השרת, לכן בעת restart של השרת כל הנתונים יאבדו.
+
+⚠️ **ביצועים**: עבור מערכות עם מספר רב של שיחות במקביל, יש לשקול שימוש במנגנון TTL או ניקוי תקופתי.
+
 # TypeScript
 
 הערות לשימוש בספריה עם טייפסקריפט:
